@@ -40,11 +40,11 @@ def plot_surface(x, y, z, azim=-60, elev=40, dist=10, cmap="RdYlBu_r"):
 if __name__ == "__main__":
 
     # read the data ------------------------------------------------------------
-    regressor_ind = range(20)
-    explained_var_ind = [20]
+    regressor_ind = range(24)
+    explained_var_ind = [24]
     splitpercentage = 0.9
 
-    X, Y, X_test, Y_test = opd.read_and_split("SouthGermanCredit.asc", regressor_ind, explained_var_ind, splitpercentage)
+    XX, Y, XX_test, Y_test = opd.read_and_split("default of credit card clients.xls", regressor_ind, explained_var_ind, splitpercentage)
 
     # build matrix where CLASSES[0] is all different labels (binary = [0, 1])
     # CLASSES[1][j] contains all rownumbers (observation) of label j
@@ -56,7 +56,7 @@ if __name__ == "__main__":
 
     # choose important features via heatmap (correlation matrix)
     # Compute correlation matrix
-    M = np.append(X, Y, axis = 1)
+    M = np.append(XX, Y, axis = 1)
     M_dataframe = pd.DataFrame(M)
 
     correlation_matrix =  np.array(M_dataframe.corr(method = 'pearson'))
@@ -64,27 +64,108 @@ if __name__ == "__main__":
 
     # Plot heatmap of correlation matrix
     opd.plot_pearson(correlation_matrix, regressor_labels)
+
     # heatmap can be seen in folder
-    # result: we see that laufkont, laufzeit, weitkred have big
-    # absolute correlation to the explained variable (kredit), but no big
-    # correlation between themselves
-    # => we choose this 3 regressors for the following classification tasks
+    # result: one could choose here the entries with the biggerst absolute values for correlation between regressor and explained variable and small absolute values of correlation between regressors
+    # first we will use every regressor
     classes = [0, 1]
 
 
-    Classes = opd.select_classes(X, CLASSES, classes)
-    Classes_test = opd.select_classes(X_test, CLASSES_test, classes)
-    if Classes[0] != Classes_test[0]:
+    Classes = opd.select_classes(XX, CLASSES, classes)
+    Classes_test = opd.select_classes(XX_test, CLASSES_test, classes)
+    if len(Classes[0]) != len(Classes_test[0]):
         exit("Training and testing set unequally splitted. Choose another seed and/or percentage.")
 
-    feature_ind = [i for i in range(len(descrX)) if ('laufkont' == descrX[i] or\
-    'laufzeit' == descrX[i] or 'weitkred' == descrX[i] or 'moral' == descrX[i] or 'hoehe' == descrX[i] or 'sparkont' == descrX[i])]
+    # use the following features in classification task
+    feature_ind = [i for i in range(24)]
 
-    #X, mu, sigma = opd.normalize(X[:, feature_ind])
-    #X_test = (X_test[:, feature_ind] - mu)/sigma
+    # normalize data (see test set with parameters of training)
+    X, mu, sigma = opd.normalize(XX[:, feature_ind])
+    X_test = (XX_test[:, feature_ind] - mu)/sigma
 
-    X = X[:, feature_ind]
-    X_test = X_test[:, feature_ind]
+
+
+
+    # X matrix for classification (including column of 1's for the intercept)
+    X = np.append(np.ones((X.shape[0], 1)), X, axis = 1)
+    X_test = np.append(np.ones((X_test.shape[0], 1)), X_test, axis = 1)
+
+
+################################################################################
+    # use logistic classification and train model
+    print("\nLOGISTIC CLASSIFICATION")
+    dict = {
+        "X": X,
+        "Y": Y,
+        "k_0": 1,
+        "stoch": False,
+        "alpha_grid": [i * 5e-3 for i in range(3,4)],
+        "C_grid": np.arange(0.1,0.4,0.01),
+        "method": "log_cla"
+    }
+
+
+    dict["beta"], dict["hyper_para"] = oc.get_parameters(**dict)
+    dict["C"] = dict["hyper_para"][2]
+
+    print("\nRESULT:")
+
+    print("\nhyper_para:")
+    print(dict["hyper_para"])
+
+    print("\nbeta:")
+    print(dict["beta"])
+
+    print("\nFNR training:")
+    print(oc.loss(**dict).FNR(**dict))
+
+    print("\nConfusion Matrix for training:\n")
+    oc.loss(**dict).print_confusion_matrix(**dict)
+
+    print("\ntraining loss: {}".format(oc.loss(**dict).los.calculate_loss(**dict)))
+
+    dict["X"], dict["Y"] = X_test, Y_test
+
+    print("\nFNR test:")
+    print(oc.loss(**dict).FNR(**dict))
+
+    print("\nConfusion Matrix for test:\n")
+    oc.loss(**dict).print_confusion_matrix(**dict)
+
+    print("\ntest loss: {}".format(oc.loss(**dict).los.calculate_loss(**dict)))
+
+
+################################################################################
+'''
+    # use logistic regression and train model
+    print("\n\nLOGISTIC REGRESSION")
+
+    dict = {
+        "X": X,
+        "Y": Y,
+        "k_0": 1,
+        "stoch": False,
+        "C_grid": np.arange(0.1,0.9,0.002),
+        "method": "log_reg"
+    }
+
+
+
+    dict["beta"], dict["hyper_para"] = oc.get_parameters(**dict)
+
+    print("\nRESULT:")
+
+    print("\nhyper_para:")
+    print(dict["hyper_para"])
+
+    print("\nbeta:")
+    print(dict["beta"])
+
+    print("\nConfusion Matrix for result:\n")
+    oc.loss(**dict).print_confusion_matrix(**dict)
+
+    print("\ntraining loss: {}".format(oc.loss(**dict).los.calculate_loss(**dict)))
+
 
 #    # visualize classes in dependence of one features
 #    fig = plt.figure(figsize = (10,5))
@@ -112,21 +193,6 @@ if __name__ == "__main__":
 #    fig.savefig("Histogram.png")
 
 
-    # use logistic classification (hyperparameter via CV) ----------------------
-    # X matrix for classification (including column of 1's for the intercept)
-    X = np.append(np.ones((X.shape[0], 1)), X, axis = 1)
-    X_test = np.append(np.ones((X_test.shape[0], 1)), X_test, axis = 1)
-
-    dict = {
-        "X": X,
-        "Y": Y,
-        "k_0": 1,
-        "stoch": False,
-        "C_grid": [0.05*i for i in range(10, 11)],
-        "alpha": 0.1,
-        "beta_init": np.array([2,4,-3,1,0,10,-6]).reshape((7,1))
-    }
-
 #    def cost(b0, b1):
 #        n = X.shape[0]
 #        loss = 0
@@ -146,23 +212,4 @@ if __name__ == "__main__":
 #    plt.tight_layout()
 #    plt.show()
 #    plt.close()
-
-
-
-    dict["beta"], dict["hyper_para"] = oc.get_parameters(**dict)
-
-    print("\nbeta:")
-    print(dict["beta"])
-
-    print("\nhyper_para:")
-    print(dict["hyper_para"])
-
-    print("\nprediciton - label")
-    print(np.sum(abs(oc.predict(**dict).transpose() - Y.transpose())))
-
-    print("\ntraining loss")
-    print(oc.loss(**dict).los.calculate_loss(**dict))
-
-
-
-    # classification (lets see how the features are distributed, if approx gaussian -> LDA/QDA)
+'''

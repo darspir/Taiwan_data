@@ -2,8 +2,6 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-def test():
-    return "opd works"
 
 def split_sample(sample, train_size, random = False):
 
@@ -31,10 +29,9 @@ def split_sample(sample, train_size, random = False):
     return train_sample, test_sample
 
 
+def read_and_split(dataset, regressor_ind, explained_var_ind, splitpercentage = 0.9, random = True):
 
-def read_and_split(dataset, regressor_ind, explained_var_ind, splitpercentage = 1, random = True):
-
-    Data = np.array(pd.read_csv(dataset, sep = ' ', skiprows = 1))
+    Data = np.array(pd.read_excel(dataset, skiprows = 1, nrows = 1000))
 
     train_sample, test_sample = split_sample(Data, splitpercentage, random = random)
 
@@ -45,16 +42,10 @@ def read_and_split(dataset, regressor_ind, explained_var_ind, splitpercentage = 
     X_train = train_sample[:, regressor_ind].reshape((n,len(regressor_ind)))
     Y_train = train_sample[:, explained_var_ind].reshape((n,1))
 
-    # if not test_sample:
-    #     X_test = []
-    #     Y_test = []
-    #     print("No test sample!")
-    # else:
     X_test = test_sample[:, regressor_ind]
     Y_test = test_sample[:, explained_var_ind]
 
     return  X_train,  Y_train,  X_test, Y_test
-
 
 
 def describe_data(Y):
@@ -75,17 +66,16 @@ def describe_data(Y):
                     (Classes[1][j]).append(i)
                     break
 
-    descrX = ['laufkont', 'laufzeit', 'moral', 'verw',
-            'hoehe', 'sparkont', 'beszeit', 'rate',
-            'famges', 'buerge', 'wohnzeit', 'verm', 'alter',
-            'weitkred', 'wohn', 'bishkred', 'beruf', 'pers',
-            'telef', 'gastarb']
+    descrX = ['X1', 'X2', 'X3', 'X4',
+            'X5', 'X6', 'X7', 'X8',
+            'X9', 'X10', 'X11', 'X12', 'X13',
+            'X14', 'X15', 'X16', 'X17', 'X18',
+            'X19', 'X20', 'X21', 'X22', 'X23', 'X24']
 
     for i in range(len(Classes[0])):
         print("Observations in class %d: %d"%(i, len(Classes[1][i])))
 
     return Classes, descrX
-
 
 
 def plot_pearson(correlation_matrix, regressor_labels):
@@ -117,7 +107,6 @@ def select_classes(X, CLASSES, classes):
     return [[CLASSES[0][e] for e in classes], [CLASSES[1][e] for e in classes]]
 
 
-
 def normalize(X):
 
     n, k = X.shape
@@ -129,7 +118,6 @@ def normalize(X):
         sigma[0,i] = np.sqrt(np.var(X[:,i].reshape((n,1))))
 
     return (X - mu)/sigma, mu, sigma
-
 
 
 def subtract_mean(Y):
