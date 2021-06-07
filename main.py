@@ -99,7 +99,7 @@ if __name__ == "__main__":
         "Y": Y,
         "k_0": 1,
         "stoch": False,
-        "alpha_grid": [i * 5e-3 for i in range(3,4)],
+        "alpha_grid": [i * 5e-3 for i in range(2,4)],
         "C_grid": np.arange(0.1,0.4,0.01),
         "method": "log_cla"
     }
@@ -134,8 +134,6 @@ if __name__ == "__main__":
 
     print("\ntest loss: {}".format(oc.loss(**dict).los.calculate_loss(**dict)))
 
-    print("probability for test set:")
-    print(oc.predict(**dict)[1])
 
 ################################################################################
 '''
