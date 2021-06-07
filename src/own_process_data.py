@@ -31,7 +31,7 @@ def split_sample(sample, train_size, random = False):
 
 def read_and_split(dataset, regressor_ind, explained_var_ind, splitpercentage = 0.9, random = True):
 
-    Data = np.array(pd.read_excel(dataset, skiprows = 1, nrows = 1000))
+    Data = np.array(pd.read_excel(dataset, skiprows = 1, nrows = 10000))
 
     train_sample, test_sample = split_sample(Data, splitpercentage, random = random)
 

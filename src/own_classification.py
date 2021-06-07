@@ -24,7 +24,7 @@ def predict(X, beta, method = "log_cla", hyper_para = [1e-4, 1e-2, 0.5], **kwarg
             eta[i] = 1 / (1 + exp(-X[i,:] @ beta))
             if eta[i] - C > 0:
                 f[i] = 1
-        return f
+        return [f, eta]
 
 def dec_boundary(Y, C):
     f = np.zeros((Y.shape[0], Y.shape[1]))
@@ -51,9 +51,9 @@ class loss:
         else:
             C = hyper_para[2]
         if method == "log_cla":
-            Prediction = predict(**kwargs)
+            Prediction = predict(**kwargs)[0]
         else:
-            Prediction = dec_boundary(predict(**kwargs), C)
+            Prediction = dec_boundary(predict(**kwargs)[0], C)
         n = 0
         tp = 0
         for i in [k for k in range(X.shape[0]) if (Y[k] == 1)]:
@@ -73,9 +73,9 @@ class loss:
         else:
             C = hyper_para[2]
         if method == "log_cla":
-            Prediction = predict(**kwargs)
+            Prediction = predict(**kwargs)[0]
         else:
-            Prediction = dec_boundary(predict(**kwargs), C)
+            Prediction = dec_boundary(predict(**kwargs)[0], C)
         n = 0
         fp = 0
         for i in [k for k in range(X.shape[0]) if (Y[k] == 0)]:
@@ -95,9 +95,9 @@ class loss:
         else:
             C = hyper_para[2]
         if method == "log_cla":
-            Prediction = predict(**kwargs)
+            Prediction = predict(**kwargs)[0]
         else:
-            Prediction = dec_boundary(predict(**kwargs), C)
+            Prediction = dec_boundary(predict(**kwargs)[0], C)
         n = 0
         tn = 0
         for i in [k for k in range(X.shape[0]) if (Y[k] == 0)]:
@@ -117,9 +117,9 @@ class loss:
         else:
             C = hyper_para[2]
         if method == "log_cla":
-            Prediction = predict(**kwargs)
+            Prediction = predict(**kwargs)[0]
         else:
-            Prediction = dec_boundary(predict(**kwargs), C)
+            Prediction = dec_boundary(predict(**kwargs)[0], C)
         n = 0
         fn = 0
         for i in [k for k in range(X.shape[0]) if (Y[k] == 1)]:
@@ -176,7 +176,7 @@ class loss:
             n = X.shape[0]
             loss = 0
             for i in range(n):
-                loss += 1/n * ( -Y[i] * log(predict(**kwargs)[i], 2) - (1-Y[i]) * log(1 -predict(**kwargs)[i], 2) )
+                loss += 1/n * ( -Y[i] * log(predict(**kwargs)[0][i], 2) - (1-Y[i]) * log(1 -predict(**kwargs)[0][i], 2) )
             return loss
 
         def beta_grad(X, Y, beta, hyper_para = [1e-4, 1e-2, 0.5], **kwargs):
@@ -191,7 +191,7 @@ class loss:
             grad = np.zeros((X.shape[1], 1))
 
             for i in range(X.shape[0]):
-                grad += 1/X.shape[0] * X[i,:].reshape((X.shape[1], 1)) * (predict(**kwargs)[i] - Y[i])
+                grad += 1/X.shape[0] * X[i,:].reshape((X.shape[1], 1)) * (predict(**kwargs)[0][i] - Y[i])
 
             return grad
 
@@ -431,9 +431,9 @@ def get_parameters(X, Y, k_0 = 1, hyper_para = [1e-4, 1e-2, 0.5], method = "log_
                 kwargs["Y"] = Y[first_cut:second_cut]
 
                 if method == "log_cla":
-                    zero_one_loss[j] = np.sum(np.abs(predict(**kwargs) - Y[first_cut:second_cut]))
+                    zero_one_loss[j] = np.sum(np.abs(predict(**kwargs)[0] - Y[first_cut:second_cut]))
                 else:
-                    zero_one_loss[j] = np.sum(np.abs(dec_boundary(predict(**kwargs)) - Y[first_cut:second_cut], kwargs["C"]))
+                    zero_one_loss[j] = np.sum(np.abs(dec_boundary(predict(**kwargs)[0]) - Y[first_cut:second_cut], kwargs["C"]))
 
             new_Zero_one_loss = np.mean(zero_one_loss)
 
@@ -481,6 +481,10 @@ def get_parameters(X, Y, k_0 = 1, hyper_para = [1e-4, 1e-2, 0.5], method = "log_
             if new_error < error or i == 0:
                 error = new_error
                 hyper_para = hyper_grid[i][:]
+        
+        kwargs["hyper_para"] = hyper_para
+        kwargs["beta"] = general_get_beta(**kwargs)
+        beta = kwargs["beta"]
 
         # check which treshold yields best outcome
         zero_one_loss = 0
@@ -492,9 +496,9 @@ def get_parameters(X, Y, k_0 = 1, hyper_para = [1e-4, 1e-2, 0.5], method = "log_
             kwargs["C"] = kwargs["C_grid"][i]
             kwargs["hyper_para"][2] = kwargs["C_grid"][i]
             if method == "log_cla":
-                new_loss = np.sum(np.abs(predict(**kwargs) - Y))
+                new_loss = np.sum(np.abs(predict(**kwargs)[0] - Y))
             else:
-                new_loss = np.sum(np.abs(dec_boundary(predict(**kwargs), kwargs["C"]) - Y0))
+                new_loss = np.sum(np.abs(dec_boundary(predict(**kwargs)[0], kwargs["C"]) - Y))
 
 
             # choosing treshold via highest TPR/FPR
@@ -513,6 +517,6 @@ def get_parameters(X, Y, k_0 = 1, hyper_para = [1e-4, 1e-2, 0.5], method = "log_
         kwargs["C"] = kwargs["C_grid"][best_treshold]
         kwargs["hyper_para"] = hyper_para
 
-        beta = general_get_beta(**kwargs)
+        
 
     return beta, hyper_para

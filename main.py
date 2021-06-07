@@ -58,7 +58,7 @@ if __name__ == "__main__":
     # Compute correlation matrix
     M = np.append(XX, Y, axis = 1)
     M_dataframe = pd.DataFrame(M)
-
+ 
     correlation_matrix =  np.array(M_dataframe.corr(method = 'pearson'))
     regressor_labels = descrX + ["kredit"]
 
@@ -134,6 +134,8 @@ if __name__ == "__main__":
 
     print("\ntest loss: {}".format(oc.loss(**dict).los.calculate_loss(**dict)))
 
+    print("probability for test set:")
+    print(oc.predict(**dict)[1])
 
 ################################################################################
 '''
