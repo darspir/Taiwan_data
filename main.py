@@ -6,35 +6,6 @@ from src import own_process_data as opd
 from src import own_classification as oc
 from math import exp, log
 
-#-------------------------------------------------------------------------------
-
-# plotting function ------------------------------------------------------------
-
-def plot_surface(x, y, z, azim=-60, elev=40, dist=10, cmap="RdYlBu_r"):
-
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    plot_args = {'rstride': 1, 'cstride': 1, 'cmap':cmap,
-             'linewidth': 20, 'antialiased': True,
-             'vmin': -2, 'vmax': 2}
-    ax.plot_surface(x, y, z, **plot_args)
-    ax.view_init(azim=azim, elev=elev)
-    ax.dist=dist
-    ax.set_xlim(-2, 2)
-    ax.set_ylim(-2, 2)
-    ax.set_zlim(-2, 2)
-
-    plt.xticks([-1, -0.5, 0, 0.5, 1], ["-1", "-1/2", "0", "1/2", "1"])
-    plt.yticks([-1, -0.5, 0, 0.5, 1], ["-1", "-1/2", "0", "1/2", "1"])
-    ax.set_zticks([-2, -1, 0, 1, 2])
-    ax.set_zticklabels(["-2", "-1", "0", "1", "2"])
-
-    ax.set_xlabel("x", fontsize=18)
-    ax.set_ylabel("y", fontsize=18)
-    ax.set_zlabel("z", fontsize=18)
-    return fig, ax;
-
-
 
 # main -------------------------------------------------------------------------
 if __name__ == "__main__":
@@ -47,7 +18,7 @@ if __name__ == "__main__":
     XX, Y, XX_test, Y_test = opd.read_and_split("default of credit card clients.xls", regressor_ind, explained_var_ind, splitpercentage)
 
     # summary statistics
-    pd.DataFrame(pd.read_excel("default of credit card clients.xls", skiprows = 1, nrows = 30000, usecols = range(18,24))).describe().to_latex(r"18_23.tex", float_format="%.2f", longtable = True)
+    pd.DataFrame(pd.read_excel("default of credit card clients.xls", skiprows = 1, nrows = 30000, usecols = range(24))).describe().to_latex(r"summary_statistics.tex", float_format="%.2f", longtable = True)
 
     # build matrix where CLASSES[0] is all different labels (binary = [0, 1])
     # CLASSES[1][j] contains all rownumbers (observation) of label j
@@ -56,23 +27,21 @@ if __name__ == "__main__":
     print("\ntest set:")
     CLASSES_test, descrX = opd.describe_data(Y_test)
 
-
     # choose important features via heatmap (correlation matrix)
     # Compute correlation matrix
     M = np.append(XX, Y, axis = 1)
     M_dataframe = pd.DataFrame(M)
 
     correlation_matrix =  np.array(M_dataframe.corr(method = 'pearson'))
-    regressor_labels = descrX + ["kredit"]
+    regressor_labels = descrX + ["Y"]
 
     # Plot heatmap of correlation matrix
     opd.plot_pearson(correlation_matrix, regressor_labels)
 
     # heatmap can be seen in folder
-    # result: one could choose here the entries with the biggerst absolute values for correlation between regressor and explained variable and small absolute values of correlation between regressors
-    # first we will use every regressor
-    classes = [0, 1]
+    # result: one could choose here the entries with the biggest absolute values for correlation between regressor and explained variable and small absolute values of correlation between regressors
 
+    classes = [0, 1]
 
     Classes = opd.select_classes(XX, CLASSES, classes)
     Classes_test = opd.select_classes(XX_test, CLASSES_test, classes)
@@ -80,14 +49,11 @@ if __name__ == "__main__":
         exit("Training and testing set unequally splitted. Choose another seed and/or percentage.")
 
     # use the following features in classification task
-    feature_ind = [i for i in range(24)]
+    feature_ind = range(24)
 
     # normalize data (see test set with parameters of training)
     X, mu, sigma = opd.normalize(XX[:, feature_ind])
     X_test = (XX_test[:, feature_ind] - mu)/sigma
-
-
-
 
     # X matrix for classification (including column of 1's for the intercept)
     X = np.append(np.ones((X.shape[0], 1)), X, axis = 1)
@@ -96,15 +62,26 @@ if __name__ == "__main__":
 
 ################################################################################
 
+
     # use logistic classification and train model
     print("\nLOGISTIC CLASSIFICATION")
+    # set up dictionary to train model
+    # k specifies if training on whole data set (k=1) | k-fold (k = k) |
+    # or LOOCV (k = X.shape[0])
+    # we specify the method (though we only implemented one) for future
+    # applications, where one might use another method (CV and minimization etc.
+    # would still work)
+
+    # !!!! BE AWARE: the cross-validation takes ages to compute (epsecially
+    # choosing a big k)... to verify that code works you may wanna try it with
+    # k = 2
     dict = {
         "X": X,
         "Y": Y,
         "k_0": 1,
         "stoch": False,
         "alpha_grid": [i * 5e-3 for i in range(3,4)],
-        "C_grid": np.arange(0.1,0.3,0.01),
+        "C_grid": np.arange(0.1,0.6,0.01),
         "method": "log_cla"
     }
 
@@ -126,8 +103,10 @@ if __name__ == "__main__":
     print("\nConfusion Matrix for training:\n")
     oc.loss(**dict).print_confusion_matrix(**dict)
 
-    print("\ntraining loss: {}".format(oc.loss(**dict).los.calculate_loss(**dict)))
+    print("\ntraining loss: \
+            {}".format(oc.loss(**dict).los.calculate_loss(**dict)))
 
+    # Verify predictive power of classifier on the test set
     dict["X"], dict["Y"] = X_test, Y_test
 
     print("\nFNR test:")
@@ -138,55 +117,9 @@ if __name__ == "__main__":
 
     print("\ntest loss: {}".format(oc.loss(**dict).los.calculate_loss(**dict)))
 
+    print("\nACC for test: {}".format(oc.loss(**dict).ACC(**dict)))
+
     dict["p_pred"] = oc.predict(**dict)[1]
     oc.SSM(**dict).plot_prob_vs_prob()
 
 ################################################################################
-
-'''
-#    # visualize classes in dependence of one features
-#    fig = plt.figure(figsize = (10,5))
-#    plt.rc('font', size=14)
-#    plt.rc('xtick', labelsize=14)
-
-#    ax = fig.add_subplot()
-
-#    binwidth = 0.1
-
-
-#    for i in range(len(classes)):
-#        x = X[Classes[1][i]]
-#        ax.hist(x, bins = np.arange(min(x), max(x)+binwidth, binwidth), label = "class %d"%i, density = True)
-
-
-#    ax.grid()
-
-#    ax.set_title("Histogram of the feature")
-
-#    handles, labels = ax.get_legend_handles_labels()
-#    legcols = 1
-#    ax.legend(handles, labels,loc = 'best', markerscale = 3, ncol = legcols)
-
-#    fig.savefig("Histogram.png")
-
-
-#    def cost(b0, b1):
-#        n = X.shape[0]
-#        loss = 0
-#        for i in range(n):
-#            loss += - 1/n * ( Y[i] * (X[i,0] *b0 + X[i,1] *b1) - log(1 + exp(X[i,0] *b0 + X[i,1] *b1), 2) )
-#        return loss
-#    Cost = np.vectorize(cost)
-
-#    plt.close()
-#    x, y = np.mgrid[-2:2:40j, -2:2:40j]
-#    plt.plot(-0.72, 0.64 , Cost(-0.72, 0.64), marker = "o", markersize = 20)
-#    fig0,ax0=plot_surface(x, y, Cost(x, y))
-#    ax0.set_xlabel("$\omega_1$")
-#    ax0.set_ylabel("$\omega_2$")
-#    ax0.set_zlabel("$C_1(\omega)$")
-#    ax0.tick_params(axis='both', labelsize=10)
-#    plt.tight_layout()
-#    plt.show()
-#    plt.close()
-'''

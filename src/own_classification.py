@@ -176,9 +176,10 @@ class loss:
             grad = np.zeros((X.shape[1], 1))
 
             for i in range(X.shape[0]):
-                grad += 1/X.shape[0] * X[i,:].reshape((X.shape[1], 1)) \
-                        * (1/ (1 + exp(-X[i,:] @ beta)) - Y[i])
-
+                grad += X[i,:].reshape((X.shape[1], 1)) \
+                        * (1/ (1 + exp(-X[i,:] @ beta)) - Y[i]) \
+                        + Lambda * beta
+            grad = grad/X.shape[0]
             return grad
 
 
@@ -352,7 +353,6 @@ def general_get_beta(method = "log_cla", stoch = False, **kwargs):
 
 def get_parameters(X, Y, k_0 = 1, hyper_para = [1e-4, 1e-2, 0.5],
                     method = "log_cla", **kwargs):
-
     """
     Parameters
     ----------
@@ -390,7 +390,6 @@ def get_parameters(X, Y, k_0 = 1, hyper_para = [1e-4, 1e-2, 0.5],
     if "Lambda_grid" not in kwargs:
         kwargs["Lambda_grid"] = hyper_para[0]
     hyperparameters = [kwargs["Lambda_grid"]]
-
 
     if "alpha_grid" not in kwargs:
         kwargs["alpha_grid"] = hyper_para[1]
@@ -452,7 +451,7 @@ def get_parameters(X, Y, k_0 = 1, hyper_para = [1e-4, 1e-2, 0.5],
         Zero_one_loss = 0
         best_threshold = 0
         print("\nsearch for threshold...")
-
+        kwargs["beta"] = general_get_beta(**kwargs)
         for i in range(len(kwargs["C_grid"])):
             # choosing threshold with lowest zero_one_loss
             kwargs["C"] = kwargs["C_grid"][i]
@@ -465,8 +464,6 @@ def get_parameters(X, Y, k_0 = 1, hyper_para = [1e-4, 1e-2, 0.5],
 
                 kwargs["X"] = np.delete(X, slice(first_cut, second_cut),axis=0)
                 kwargs["Y"] = np.delete(Y, slice(first_cut, second_cut),axis=0)
-
-                kwargs["beta"] = general_get_beta(**kwargs)
 
                 kwargs["X"] = X[first_cut:second_cut,:]
                 kwargs["Y"] = Y[first_cut:second_cut]
@@ -484,8 +481,9 @@ def get_parameters(X, Y, k_0 = 1, hyper_para = [1e-4, 1e-2, 0.5],
             #new_performance = loss(**kwargs).TPR(**kwargs)/loss(**kwargs).FPR(**kwargs)
             #print("threshold: {} \t performance: {}".format(round(kwargs["C"],2), round(new_performance,2)))
 
-            # choose threshold with smallest 0-1-loss and a maximum FNR of 0.15
-            if (new_Zero_one_loss < Zero_one_loss and loss(**kwargs).FNR(**kwargs) < 0.15) or i == 0:
+            # choose threshold with smallest 0-1-loss and a maximum FNR of
+                                                                    # FNR_max
+            if (new_Zero_one_loss < Zero_one_loss and loss(**kwargs).FNR(**kwargs) < 1) or i == 0:
                 Zero_one_loss = new_Zero_one_loss
                 best_threshold = i
 
@@ -548,7 +546,8 @@ def get_parameters(X, Y, k_0 = 1, hyper_para = [1e-4, 1e-2, 0.5],
             #new_performance = loss(**kwargs).TPR(**kwargs)/loss(**kwargs).FPR(**kwargs)
             #print("threshold: {} \t performance: {}".format(round(kwargs["C"],2), round(new_performance,2)))
 
-            # choose threshold with smallest 0-1-loss and a maximum FNR of 0.15
+            # choose threshold with smallest 0-1-loss and a maximum FNR of
+                                                                        #FNR_max
             if (new_loss < zero_one_loss and loss(**kwargs).FNR(**kwargs) < 1) or i == 0:
                 zero_one_loss = new_loss
                 best_threshold = i
@@ -584,8 +583,16 @@ class SSM:
 
         # estimate real probability via SSM
         for i in range(len(p_est)):
-            for j in range(-self.n, self.n+1):
-                p_est[i] += 1/(2*self.n + 1) * Y_sort[(i+j)%Y_sort.shape[0]]
+            if i < self.n:
+                for j in range(-i, self.n):
+                    p_est[i] += 1/(self.n + i) * Y_sort[(i+j)%Y_sort.shape[0]]
+            elif i > (len(p_est) - self.n):
+                for j in range(-self.n, (len(p_est) - i)):
+                    p_est[i] += 1/(self.n + (len(p_est) - i)) *\
+                                    Y_sort[(i+j)%Y_sort.shape[0]]
+            else:
+                for j in range(-self.n, self.n+1):
+                    p_est[i] += 1/(2*self.n + 1) * Y_sort[(i+j)%Y_sort.shape[0]]
 
         return p_pred_sort, p_est
 
@@ -593,9 +600,9 @@ class SSM:
 
         fig, ax = plt.subplots(figsize=(10,10))
 
-        ax.set_title("Actual and predicted probability via SSM", fontsize = 24)
-        ax.set_xlabel("Predicted probability", fontsize = 20)
-        ax.set_ylabel("Actual probability", fontsize = 20)
+        # ax.set_title("Actual and predicted probability via SSM", fontsize = 24)
+        ax.set_xlabel("Predicted probability", fontsize = 23)
+        ax.set_ylabel("Actual probability", fontsize = 23)
 
         ax.set_xlim((0,1))
         ax.set_ylim((0,1))
@@ -612,7 +619,7 @@ class SSM:
         plt.plot(p_pred, p_est, "o", c = "r", alpha = 0.5)
         plt.plot(x, y, "b-", label = r"$y = {}\cdot x + {}$, $R^2 = {}$".format(round(slope,2), round(intercept,2), round(r_value**2,3)))
 
-        plt.legend(loc = "best", fontsize = 20)
+        plt.legend(loc = "best", fontsize = 23)
         fig.tight_layout(pad=1)
         plt.savefig("ProbabilitySSM.png")
         return 1

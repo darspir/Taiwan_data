@@ -4,7 +4,9 @@ import matplotlib.pyplot as plt
 
 
 def split_sample(sample, train_size, random = False):
-
+    """
+    excluded splitting function from read_and_split
+    """
     full_sample = np.array(sample)
     n, k = full_sample.shape
     split_index = int(round(train_size * n, 0))
@@ -31,7 +33,11 @@ def split_sample(sample, train_size, random = False):
 
 def read_and_split(dataset, regressor_ind, explained_var_ind,
                 splitpercentage = 0.9, random = True):
-
+    """
+    split excel file dataset in training set and test set according to splitpercentage
+    using the regressors from regressor_ind and the explained variable via explained_var_ind
+    if random == True we shuffle the dataset before splitting
+    """
     Data = np.array(pd.read_excel(dataset, skiprows = 1, nrows = 30000))
 
     train_sample, test_sample = split_sample(Data, splitpercentage, random = random)
@@ -50,7 +56,10 @@ def read_and_split(dataset, regressor_ind, explained_var_ind,
 
 
 def describe_data(Y):
-
+    """
+    describing data (how much observations of which class) and creating the
+    variable CLASSES and the decribing variable of the features descrX
+    """
     n = np.array(Y).shape[0]
 
     # create Classes[0] = name of all classes, Classes[1][j] = number (row) of observation in class j
@@ -80,6 +89,9 @@ def describe_data(Y):
 
 
 def plot_pearson(correlation_matrix, regressor_labels):
+    """
+    plot the correlation matrix as heatmap
+    """
     fig, ax = plt.subplots(figsize=(10,10))
     im = ax.imshow(abs(correlation_matrix), cmap="YlGnBu")
 
@@ -97,19 +109,25 @@ def plot_pearson(correlation_matrix, regressor_labels):
             text = ax.text(j, i, round(correlation_matrix[i, j],2),
                            ha="center", va="center", color="k")
 
-    ax.set_title("Heatmap of Correlation Matrix")
-
+    #plt.set_title("Correlation Matrix", fontsize=24)
     fig.tight_layout(pad=1)
 
     plt.savefig("heatmap.png")
 
 
 def select_classes(X, CLASSES, classes):
+    """
+    given a variable "CLASSES" (containing all classes and respectively
+    observations), choose only the subset "classes"
+    """
     return [[CLASSES[0][e] for e in classes], [CLASSES[1][e] for e in classes]]
 
 
 def normalize(X):
-
+    """
+    normalize each column of X[j, :] for all j by subtracting mean and dividing
+    by standard deviation
+    """
     n, k = X.shape
     mu = np.zeros((1, k))
     sigma = np.zeros((1, k))
@@ -119,14 +137,3 @@ def normalize(X):
         sigma[0,i] = np.sqrt(np.var(X[:,i].reshape((n,1))))
 
     return (X - mu)/sigma, mu, sigma
-
-
-def subtract_mean(Y):
-
-    n, k = Y.shape
-    mu = np.zeros((1, k))
-
-    for i in range (0,k):
-        mu[0,i] = np.mean(X[:,i].reshape((n,1)))
-
-    return Y - mu, mu
